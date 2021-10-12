@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option go_package = "example.com/chatservice-grpc;chatservice_grpc";
+
+package chatservice;
+
+import "google/protobuf/empty.proto";
+
+service RouteMessage {
+
+    rpc Connect (NewCourse) returns (Course) {}
+
+    rpc Disconnect (google.protobuf.Empty) returns (Course) {}
+
+    rpc Message (GetCourseByIdRequest) returns (Course) {}
+}
+
+message Course {
+    int64 Id = 1;
+    string Name = 2;
+}
+
+message NewCourse {
+    string Name = 2;
+}
+
+message GetCourseByIdRequest {
+    int64 Id = 1;
+}
