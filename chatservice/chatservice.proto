@@ -19,17 +19,13 @@ message Message {
     repeated int64 Vectorclock = 1;
 }
 
-message Id {
-    int64 Id = 1;
-}
-
 message IdMessage {
     int64 Id = 1;
     repeated int64 Vectorclock = 2;
 }
 
 message TextMessage {
-    int64 UId = 1;
+    int64 UserId = 1;
     string Text = 2;
     repeated int64 Vectorclock = 3;
 }
