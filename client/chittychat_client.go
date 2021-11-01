@@ -6,7 +6,15 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"strconv"
+	"sync"
 )
+
+var client pb.ChittychatClient
+var wait *sync.WaitGroup
+
+func init() {
+	wait = &sync.WaitGroup{}
+}
 
 const (
 	address = "localhost:50051"

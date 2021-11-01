@@ -5,29 +5,25 @@ option go_package = "example.com/chatservice-grpc;chatservice_grpc";
 package chatservice;
 
 service Chittychat {
+    rpc Join(Connect) returns (stream Message);
+    rpc Broadcast(Message) returns (Empty);
+    rpc Leave(Message) returns (Empty);
+}
 
-    rpc Join (Message) returns (stream TextMessage) {}
-
-    rpc Leave (IdMessage) returns (Empty) {}
-
-    rpc Publish (TextMessage) returns (Empty) {}
-
-    rpc Broadcast (TextMessage) returns (Empty) {}
+message User {
+    string id = 1;
+    string name = 2;
 }
 
 message Message {
-    repeated int64 Vectorclock = 1;
+    string id = 1;
+    string msg = 2;
+    repeated int64 vectorclock = 3;
 }
 
-message IdMessage {
-    int64 Id = 1;
-    repeated int64 Vectorclock = 2;
-}
-
-message TextMessage {
-    int64 UserId = 1;
-    string Text = 2;
-    repeated int64 Vectorclock = 3;
+message Connect {
+    User user = 1;
+    bool active = 2;
 }
 
 message Empty {}

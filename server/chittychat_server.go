@@ -4,49 +4,69 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
 	pb "example.com/chittychat/chatservice"
 	"google.golang.org/grpc"
+	glog "google.golang.org/grpc/grpclog"
 )
 
-const (
-	port = ":50051"
-)
+var logger glog.LoggerV2
+
+func init() {
+	logger = glog.NewLoggerV2(os.Stdout, os.Stdout, os.Stdout)
+}
+
+type Connection struct {
+	stream pb.Chittychat_JoinServer
+	id     string
+	active bool
+	error  chan error
+}
+
+type Server struct {
+	Connection []*Connection
+}
 
 var (
 	pCount      int64 = 0
 	vectorclock       = make([]int64, 1)
 )
 
-type ChittychatServer struct {
-	pb.UnimplementedChittychatServer
+func (s *Server) Join(connection *pb.Connect, stream pb.Chittychat_JoinServer) error {
+	conn := &Connection{
+		stream: stream,
+		id:     connection.User.Id,
+		active: true,
+		error:  make(chan error),
+	}
+	s.Connection = append(s.Connection, conn)
+	return <-conn.error
 }
 
-func (s *ChittychatServer) Join(message *pb.Message, src pb.Chittychat_JoinServer) error {
-	vectorclock[0]++
-	pCount++
-	vectorclock = append(vectorclock, message.Vectorclock[0])
-	var vc = append(make([]int64, pCount), message.Vectorclock...)
-	MergeVectorclocks(vc)
-	log.Printf("Participant %v Joined Chitty-Chat at Vector time %v", pCount, vectorclock)
-
-	err := src.Send(&pb.TextMessage{Text: strconv.FormatInt(pCount, 10), Vectorclock: vectorclock})
-	if err != nil {
-		return err
-	}
-
-	for {
-		err := src.Send(&pb.TextMessage{Text: "aaaa", Vectorclock: vectorclock})
-		if err != nil {
-			return err
-		}
-		vectorclock[0]++
-
-		time.Sleep(2 * time.Second)
-	}
-}
+//vectorclock[0]++
+//pCount++
+//vectorclock = append(vectorclock, message.Vectorclock[0])
+//var vc = append(make([]int64, pCount), message.Vectorclock...)
+//MergeVectorclocks(vc)
+//log.Printf("Participant %v Joined Chitty-Chat at Vector time %v", pCount, vectorclock)
+//
+//err := src.Send(&pb.TextMessage{Text: strconv.FormatInt(pCount, 10), Vectorclock: vectorclock})
+//if err != nil {
+//	return err
+//}
+//
+//for {
+//	err := src.Send(&pb.TextMessage{Text: "aaaa", Vectorclock: vectorclock})
+//	if err != nil {
+//		return err
+//	}
+//	vectorclock[0]++
+//
+//	time.Sleep(2 * time.Second)
+//}
 
 func MergeVectorclocks(vc []int64) {
 	if len(vc) > len(vectorclock) {
