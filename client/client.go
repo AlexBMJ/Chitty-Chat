@@ -25,7 +25,7 @@ func init() {
 	wait = &sync.WaitGroup{}
 }
 
-func connect(user *pb.User) error {
+func connect() error {
 	var streamErr error
 	vectorclock[user.Id]++
 	stream, err := client.Join(context.Background(), &pb.Connect{
@@ -39,21 +39,27 @@ func connect(user *pb.User) error {
 	}
 
 	wait.Add(1)
-	go func(str pb.Chittychat_JoinClient) {
+	go func(streamClient pb.Chittychat_JoinClient) {
 		defer wait.Done()
-
 		for {
-			msg, err := str.Recv()
+			msg, err := streamClient.Recv()
+			if err != nil {
+				streamErr = fmt.Errorf("recieve error: %v", err)
+				break
+			}
 			if msg.User.Name == "leave request" && msg.Msg == "" && msg.Vectorclock == nil {
+				vectorclock[user.Id]++
 				delete(vectorclock, msg.User.Id)
 			} else {
 				MergeVectorclocks(msg.Vectorclock)
 				vectorclock[user.Id]++
-				if err != nil {
-					streamErr = fmt.Errorf("recieve error: %v", err)
-					break
-				}
 				fmt.Printf("[%v]: %s | %v\n", msg.User.Name, msg.Msg, vectorclock)
+			}
+		}
+		if streamErr != nil {
+			if streamErr.Error() == "recieve error: rpc error: code = Unknown desc = disconnected" {
+				fmt.Println("[Disconnected]")
+				os.Exit(0)
 			}
 		}
 	}(stream)
@@ -95,7 +101,10 @@ func main() {
 		Name: *name,
 	}
 
-	connect(user)
+	connErr := connect()
+	if connErr != nil {
+		os.Exit(1)
+	}
 
 	wait.Add(1)
 	go func() {
@@ -103,12 +112,22 @@ func main() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			vectorclock[user.Id]++
-			msg := &pb.Message{
-				User:        user,
-				Msg:         scanner.Text(),
-				Vectorclock: vectorclock,
+			var msg *pb.Message
+			var err error
+			if scanner.Text() == "/leave" {
+				msg = &pb.Message{
+					User:        user,
+					Vectorclock: vectorclock,
+				}
+				_, err = client.Leave(context.Background(), msg)
+			} else {
+				msg = &pb.Message{
+					User:        user,
+					Msg:         scanner.Text(),
+					Vectorclock: vectorclock,
+				}
+				_, err = client.Broadcast(context.Background(), msg)
 			}
-			_, err := client.Broadcast(context.Background(), msg)
 			if err != nil {
 				fmt.Printf("Send Error: %v", err)
 				break
@@ -124,6 +143,7 @@ func main() {
 				User:        user,
 				Vectorclock: vectorclock,
 			}
+			vectorclock[user.Id]++
 			_, err := client.Leave(context.Background(), msg)
 			if err != nil {
 				fmt.Printf("Send Error: %v", err)

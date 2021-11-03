@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	pb "example.com/chittychat/chatservice"
 	"flag"
 	"fmt"
@@ -145,6 +146,8 @@ func (s *Server) Leave(_ context.Context, msg *pb.Message) (*pb.Empty, error) {
 
 	for idx, conn := range s.Connection {
 		if conn.user.Id == msg.User.Id {
+			conn.active = false
+			conn.error <- errors.New("disconnected")
 			s.Connection = append(s.Connection[:idx], s.Connection[idx+1:]...)
 		}
 	}
@@ -163,6 +166,8 @@ func (s *Server) Leave(_ context.Context, msg *pb.Message) (*pb.Empty, error) {
 					conn.active = false
 					conn.error <- err
 				}
+				vectorclock[id]++
+				leaveMsg.Vectorclock = vectorclock
 				err2 := conn.stream.Send(leavingUser)
 				if err2 != nil {
 					logger.Errorf("Error: %v - %v", conn.stream, err2)
