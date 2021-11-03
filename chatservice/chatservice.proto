@@ -16,14 +16,15 @@ message User {
 }
 
 message Message {
-    string id = 1;
+    User user = 1;
     string msg = 2;
-    repeated int64 vectorclock = 3;
+    map<string, int64> vectorclock = 3;
 }
 
 message Connect {
     User user = 1;
     bool active = 2;
+    map<string, int64> vectorclock = 3;
 }
 
 message Empty {}
